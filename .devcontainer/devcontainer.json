@@ -1,0 +1,31 @@
+{
+    "name": "sketch-wavenet",
+    "dockerFile": "Dockerfile",
+    "postCreateCommand": "sh .devcontainer/post_install.sh",
+    "runArgs": [
+        "--network=host",
+        "--gpus=all"
+    ],
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-toolsai.jupyter",
+                "ms-python.python"
+            ],
+            "settings": {
+                "python.formatting.provider": "black",
+                "files.exclude": {
+                    "**/.git": true,
+                    "**/.svn": true,
+                    "**/.hg": true,
+                    "**/CVS": true,
+                    "**/.DS_Store": true,
+                    "**/Thumbs.db": true,
+                    "**/*.egg-info": true,
+                    "**/.pytest_cache": true,
+                    "**/__pycache__": true
+                }
+            }
+        }
+    }
+}
