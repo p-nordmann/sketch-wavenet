@@ -1,8 +1,13 @@
 import jax
 import jax.numpy as jnp
-from jaxtyping import Float32
+from jaxtyping import Array, Float32
 
-K = Float32
+
+def build_mask(
+    N_max: int, N_s: Float32[Array, "batch_size"]
+) -> Float32[Array, "batch_size N_max"]:
+    return jnp.arange(N_max) < N_s[:, jnp.newaxis]
+
 
 def inner_mixture_loss(
     target_x,
