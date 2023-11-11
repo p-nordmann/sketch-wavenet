@@ -1,2 +1,1 @@
-pip3 install optax
-pip3 install -e .
+echo "Nothing special to do here..."
