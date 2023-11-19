@@ -162,8 +162,10 @@ cython_debug/
 # VSCode
 .vscode
 
-# Data
-data/*.ndjson
+# Data, logs, etc.
+data
+logs
+out
 
 # Eqx-wavenet
 eqx-wavenet
