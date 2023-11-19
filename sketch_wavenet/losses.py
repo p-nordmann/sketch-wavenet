@@ -1,5 +1,6 @@
 import jax
 import jax.numpy as jnp
+import optax
 from jaxtyping import Array, Float32
 
 
@@ -71,3 +72,42 @@ def mixture_loss(
             - jnp.log(2 * jnp.pi)
         )
     )
+
+
+def reconstruction_loss(model, inputs, M, key=None):
+    N_s = jnp.argmax(inputs[:, :, -1] > 0.5, axis=-1) - 1
+    N_max = inputs.shape[1]
+    out = jax.vmap(model, in_axes=[0, None, None])(
+        inputs[:, :-1],
+        key is not None,
+        key,
+    )
+    mask = build_mask(N_max, N_s)
+
+    out_pis = out[:, :, 0:M]
+    out_mu_xs = out[:, :, M : 2 * M]
+    out_mu_ys = out[:, :, 2 * M : 3 * M]
+    out_s_xs = out[:, :, 3 * M : 4 * M]
+    out_s_ys = out[:, :, 4 * M : 5 * M]
+    out_r_xys = out[:, :, 5 * M : 6 * M]
+
+    target_x = inputs[:, 1:, 0]
+    target_y = inputs[:, 1:, 1]
+
+    logits = out[:, :, 6 * M :]
+    target_logits = inputs[:, 1:, 2:]
+
+    return jnp.mean(
+        jax.vmap(mixture_loss)(
+            target_x,
+            target_y,
+            out_pis,
+            out_mu_xs,
+            out_mu_ys,
+            out_s_xs,
+            out_s_ys,
+            out_r_xys,
+            mask[:, 1:],
+        )
+        / N_max
+    ) + jnp.mean(optax.softmax_cross_entropy(logits, target_logits))
