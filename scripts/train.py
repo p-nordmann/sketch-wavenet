@@ -1,10 +1,13 @@
 import argparse
 import json
 import os
+from typing import NamedTuple
 
+import equinox as eqx
 import jax
 import numpy as np
 import optax
+import toml
 from eqx_wavenet import Wavenet, WavenetConfig
 from PIL import Image
 from tqdm import tqdm
@@ -38,6 +41,11 @@ parser.add_argument("--model_dir", type=str, required=True)
 parser.add_argument("--max_stroke_len", type=int, default=200)
 parser.add_argument("--rescale_data", action="store_true")
 parser.add_argument("--num_gaussians", type=int, default=20)
+
+
+def to_toml(path: str, config: NamedTuple) -> None:
+    with open(path, "w") as f:
+        toml.dump(config._asdict(), f)
 
 
 def load_quickdraw_file(path):
@@ -165,6 +173,12 @@ if __name__ == "__main__":
                 )
             except Exception as e:
                 progress_bar.write("Error drawing:" + "\n" + str(e))
+
+    # Dump model weights.
+    if not os.path.isdir(args.model_dir):
+        os.makedirs(args.model_dir)
+    to_toml(os.path.join(args.model_dir, "model_config.toml"), wavenet_config)
+    eqx.tree_serialise_leaves(os.path.join(args.model_dir, "model.eqx"), model)
 
     # Test.
     # TODO test
