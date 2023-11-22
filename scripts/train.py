@@ -1,13 +1,18 @@
 import argparse
 import json
+import os
 
 import jax
+import numpy as np
 import optax
 from eqx_wavenet import Wavenet, WavenetConfig
+from PIL import Image
 from tqdm import tqdm
 
 from sketch_wavenet.data_processing import build_dataset, normalize_data, prepare_splits
+from sketch_wavenet.drawing import Drawing
 from sketch_wavenet.logging import TensorboardLogger
+from sketch_wavenet.sampling import sample
 from sketch_wavenet.training import make_epoch, make_eval_step, make_step
 
 parser = argparse.ArgumentParser(description="Trains sketch-wavenet.")
@@ -90,6 +95,8 @@ if __name__ == "__main__":
     if args.log_dir is not None:
         logger_train = TensorboardLogger(args.log_dir, "train")
         logger_dev = TensorboardLogger(args.log_dir, "dev")
+    if args.examples_dir is not None:
+        logger_examples = TensorboardLogger(args.examples_dir, "examples")
 
     # Train.
     epoch_steps = X_train.shape[0] // args.batch_size
@@ -137,6 +144,27 @@ if __name__ == "__main__":
                     logger_dev.log({"loss": loss})  # type: ignore
 
             progress_bar.update(1)
+
+        # Draw an example each epoch.
+        if args.examples_dir is not None:
+            if not os.path.isdir(args.examples_dir):
+                os.makedirs(args.examples_dir)
+            try:
+                file_path = os.path.join(args.examples_dir, f"epoch_{epoch+1}.png")
+
+                # Generate image and save it to png.
+                key, key_example = jax.random.split(key)
+                strokes = sample(args.num_gaussians, model, key_example)
+                Drawing.from_stroke5(strokes).render().save_png(file_path)
+
+                # Read png and send it to tensorboard.
+                logger_examples.n = (epoch + 1) * epoch_steps
+                logger_examples.log_image(
+                    "example",
+                    np.array(Image.open(file_path)).transpose((2, 0, 1)),
+                )
+            except Exception as e:
+                progress_bar.write("Error drawing:" + "\n" + str(e))
 
     # Test.
     # TODO test

@@ -1,7 +1,7 @@
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 import numpy as np
-import equinox as eqx
 
 
 def sample_from_mixture(M, out, key, deterministic):
@@ -42,14 +42,12 @@ def sample_from_mixture(M, out, key, deterministic):
     return coords, choice
 
 
-def sample(config, model, key, n=200, deterministic=False):
+def sample(M, model, key, n=200, deterministic=False):
     x = jnp.zeros(shape=(n, 5), dtype=jnp.float32)
     x = x.at[0, 2].set(1)  # Origin token.
     for k in range(n):
         out = eqx.filter_jit(model)(x)[k]
-        coords, choice = eqx.filter_jit(sample_from_mixture)(
-            config.M, out, key, deterministic
-        )
+        coords, choice = eqx.filter_jit(sample_from_mixture)(M, out, key, deterministic)
         x = x.at[k + 1, 2 + choice].set(1)
         x = x.at[k + 1, :2].set(coords)
         if choice == 2:
