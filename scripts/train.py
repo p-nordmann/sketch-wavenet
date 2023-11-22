@@ -1,3 +1,10 @@
+import random
+
+adjectives = ["fluffy", "sparkly", "tiny", "happy", "sunny", "cozy"]
+nouns = ["kitten", "cupcake", "rainbow", "butterfly", "flower", "puppy"]
+cute_name = random.choice(adjectives) + "_" + random.choice(nouns)
+
+
 import argparse
 import json
 import os
@@ -100,11 +107,9 @@ if __name__ == "__main__":
     opt_state = opt.init(model)
 
     # Loggers.
+    logger = None
     if args.log_dir is not None:
-        logger_train = TensorboardLogger(args.log_dir, "train")
-        logger_dev = TensorboardLogger(args.log_dir, "dev")
-    if args.examples_dir is not None:
-        logger_examples = TensorboardLogger(args.examples_dir, "examples")
+        logger = TensorboardLogger(args.log_dir, cute_name)
 
     # Train.
     epoch_steps = X_train.shape[0] // args.batch_size
@@ -125,7 +130,7 @@ if __name__ == "__main__":
             make_epoch(X_train, args.batch_size, key=key_train)
         ):
             key, key_step = jax.random.split(key)
-            loss, model, opt_state = make_step(
+            loss_train, model, opt_state = make_step(
                 model,
                 inputs,
                 args.num_gaussians,
@@ -135,21 +140,17 @@ if __name__ == "__main__":
             )
 
             if args.log_dir is not None:
-                logger_train.log({"loss": loss})  # type: ignore
-
-            if (steps + 1) % args.validate_each == 0:
-                try:
-                    inputs = next(epoch_dev)  # type: ignore
-                except StopIteration:
-                    key, key_dev = jax.random.split(key)
-                    epoch_dev = make_epoch(X_dev, args.batch_size, key=key_dev)
-                    inputs = next(epoch_dev)
-
-                loss = make_eval_step(model, inputs, args.num_gaussians)
-
-                if args.log_dir is not None:
-                    logger_dev.step = logger_train.step  # type: ignore
-                    logger_dev.log({"loss": loss})  # type: ignore
+                if (steps + 1) % args.validate_each == 0:
+                    try:
+                        inputs = next(epoch_dev)  # type: ignore
+                    except StopIteration:
+                        key, key_dev = jax.random.split(key)
+                        epoch_dev = make_epoch(X_dev, args.batch_size, key=key_dev)
+                        inputs = next(epoch_dev)
+                    loss_dev = make_eval_step(model, inputs, args.num_gaussians)
+                    logger.log({"loss_train": loss_train, "loss_dev": loss_dev})  # type: ignore
+                else:
+                    logger.log({"loss_train": loss_train})  # type: ignore
 
             progress_bar.update(1)
 
@@ -165,14 +166,14 @@ if __name__ == "__main__":
                 strokes = sample(args.num_gaussians, model, key_example)
                 Drawing.from_stroke5(strokes).render().save_png(file_path)
 
-                # Read png and send it to tensorboard.
-                logger_examples.n = (epoch + 1) * epoch_steps
-                logger_examples.log_image(
-                    "example",
-                    np.array(Image.open(file_path)).transpose((2, 0, 1)),
-                )
+                if logger:
+                    # Read the image back and log it to tensorboard.
+                    logger.log_image(
+                        "example",
+                        np.array(Image.open(file_path)).transpose((2, 0, 1)),
+                    )
             except Exception as e:
-                progress_bar.write("Error drawing:" + "\n" + str(e))
+                print("Error drawing:" + "\n" + str(e))
 
     # Dump model weights.
     if not os.path.isdir(args.model_dir):
