@@ -32,6 +32,7 @@ parser.add_argument("--weight_decay", type=float)
 parser.add_argument("--use_gradient_clipping", action="store_true")
 parser.add_argument("--base_learning_rate", type=float, required=True)
 parser.add_argument("--schedule", choices=["constant", "1cycle"], required=True)
+parser.add_argument("--peak_learning_rate", type=float, default=1e-3)
 parser.add_argument("--use_dropout", action="store_true")
 parser.add_argument("--batch_size", type=int, required=True)
 parser.add_argument("--epochs", type=int, required=True)
@@ -97,11 +98,29 @@ if __name__ == "__main__":
         key=key_model,
     )
 
+    # Util: number of training steps.
+    epoch_steps = X_train.shape[0] // args.batch_size
+    total_steps = args.epochs * epoch_steps
+
+    # Make learning rate.
+    learning_rate = args.base_learning_rate
+    match args.schedule:
+        case "constant":
+            pass
+        case "1cycle":
+            learning_rate = optax.cosine_onecycle_schedule(
+                transition_steps=total_steps,
+                peak_value=args.peak_learning_rate,
+                pct_start=0.3,
+                div_factor=25,
+                final_div_factor=1e3,
+            )
+
     # Make optimizer.
     opt_cls = getattr(optax, args.optimizer)
-    opt = opt_cls(args.base_learning_rate)
+    opt = opt_cls(learning_rate)
     if args.weight_decay:
-        opt = opt_cls(args.base_learning_rate, weight_decay=args.weight_decay)
+        opt = opt_cls(learning_rate, weight_decay=args.weight_decay)
     if args.use_gradient_clipping:
         opt = optax.chain(optax.clip(1.0), opt)
     opt_state = opt.init(model)
@@ -112,8 +131,6 @@ if __name__ == "__main__":
         logger = TensorboardLogger(args.log_dir, cute_name)
 
     # Train.
-    epoch_steps = X_train.shape[0] // args.batch_size
-    total_steps = args.epochs * epoch_steps
     progress_bar = tqdm(
         desc="training",
         total=total_steps,
