@@ -12,6 +12,7 @@ from typing import NamedTuple
 
 import equinox as eqx
 import jax
+import jax.numpy as jnp
 import numpy as np
 import optax
 import toml
@@ -49,6 +50,7 @@ parser.add_argument("--model_dir", type=str, required=True)
 parser.add_argument("--max_stroke_len", type=int, default=200)
 parser.add_argument("--rescale_data", action="store_true")
 parser.add_argument("--num_gaussians", type=int, default=20)
+parser.add_argument("--use_data_augmentation", action="store_true")
 
 
 def to_toml(path: str, config: NamedTuple) -> None:
@@ -144,7 +146,12 @@ if __name__ == "__main__":
 
         key, key_train = jax.random.split(key)
         for steps, inputs in enumerate(
-            make_epoch(X_train, args.batch_size, key=key_train)
+            make_epoch(
+                jnp.array(X_train),
+                args.batch_size,
+                args.use_data_augmentation,
+                key=key_train,
+            )
         ):
             key, key_step = jax.random.split(key)
             loss_train, model, opt_state = make_step(
