@@ -8,7 +8,7 @@ cute_name = random.choice(adjectives) + "_" + random.choice(nouns)
 import argparse
 import json
 import os
-from typing import NamedTuple
+from typing import NamedTuple, cast
 
 import equinox as eqx
 import jax
@@ -108,7 +108,7 @@ if __name__ == "__main__":
     learning_rate = args.base_learning_rate
     match args.schedule:
         case "constant":
-            pass
+            optax.constant_schedule(learning_rate)
         case "1cycle":
             learning_rate = optax.cosine_onecycle_schedule(
                 transition_steps=total_steps,
@@ -163,7 +163,7 @@ if __name__ == "__main__":
                 key=key_step if args.use_dropout else None,
             )
 
-            if args.log_dir is not None:
+            if logger is not None:
                 if (steps + 1) % args.validate_each == 0:
                     try:
                         inputs = next(epoch_dev)  # type: ignore
@@ -172,9 +172,24 @@ if __name__ == "__main__":
                         epoch_dev = make_epoch(X_dev, args.batch_size, key=key_dev)
                         inputs = next(epoch_dev)
                     loss_dev = make_eval_step(model, inputs, args.num_gaussians)
-                    logger.log({"loss_train": loss_train, "loss_dev": loss_dev})  # type: ignore
+                    logger.log(
+                        {
+                            "loss_train": cast(float, loss_train),
+                            "loss_dev": cast(float, loss_dev),
+                            "learning_rate": cast(
+                                float, learning_rate(epoch * epoch_steps + steps)
+                            ),
+                        }
+                    )
                 else:
-                    logger.log({"loss_train": loss_train})  # type: ignore
+                    logger.log(
+                        {
+                            "loss_train": cast(float, loss_train),
+                            "learning_rate": cast(
+                                float, learning_rate(epoch * epoch_steps + steps)
+                            ),
+                        }
+                    )  # type: ignore
 
             progress_bar.update(1)
 
