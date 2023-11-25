@@ -45,6 +45,9 @@ def normalize_drawing(
 
 def prepare_splits(
     dataset: list[list[Stroke5]],
+    training_prop: float,
+    dev_prop: float,
+    test_prop: float,
     *,
     key: PRNGKeyArray,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -52,7 +55,8 @@ def prepare_splits(
 
     # Splits.
     n = data.shape[0]
-    a, b = int(0.7 * n), int(0.8 * n)
+    a = int(training_prop * n / (training_prop + dev_prop + test_prop))
+    b = int((training_prop + dev_prop) * n / (training_prop + dev_prop + test_prop))
 
     # Shuffle data using jax for reproduceability.
     idx = np.array(jax.random.permutation(x=n, key=key))

@@ -1,0 +1,45 @@
+[random]
+seed_data = 0
+seed_model = 1
+seed_training = 2
+
+[files]
+log_dir = "./logs"
+examples_dir = "./logs/examples"
+out_dir = "./out"
+
+[data]
+files = ['./data/penguin.ndjson', './data/whale.ndjson']
+training_prop = 0.7
+dev_prop = 0.1
+test_prop = 0.2
+rescale_data = true
+max_stroke_len = 200
+use_data_augmentation = true
+
+[model]
+num_gaussians = 20
+
+[model.wavenet]
+num_layers = 9
+layer_dilations = [1, 2, 4, 8, 16, 32, 64, 128, 256]
+size_in = 5
+input_kernel_size = 1
+size_layers = 64
+size_hidden = 256
+size_out = 123
+
+[training]
+epochs = 10
+batch_size = 50
+validate_each = 7
+use_dropout = true
+optimizer = "adamw"
+weight_decay = 1e-3
+use_gradient_clipping = true
+schedule = "constant"
+base_learning_rate = 5e-4
+peak_learning_rate = 1e-3
+pct_start = 0.3
+div_factor = 25
+final_div_factor = 1e3

@@ -25,6 +25,7 @@ dependencies = [
     "tensorboardX~=2.6.0",
     "tqdm~=4.66",
     "toml~=0.10.0",
+    "pydantic~=2.5.0",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
