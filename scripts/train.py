@@ -128,7 +128,7 @@ if __name__ == "__main__":
             )
         ):
             key_training, key_dropout = jax.random.split(key_training)
-            loss_train, model, opt_state = make_step(
+            loss_train, model, opt_state, aux = make_step(
                 model,
                 inputs,
                 config.model.num_gaussians,
@@ -147,7 +147,9 @@ if __name__ == "__main__":
                             X_dev, config.training.batch_size, key=key_dev
                         )
                         inputs = next(epoch_dev)
-                    loss_dev = make_eval_step(model, inputs, config.model.num_gaussians)
+                    loss_dev, aux_dev = make_eval_step(
+                        model, inputs, config.model.num_gaussians
+                    )
                     logger.log(
                         {
                             "loss_train": cast(float, loss_train),
@@ -155,6 +157,8 @@ if __name__ == "__main__":
                             "learning_rate": cast(
                                 float, learning_rate(epoch * epoch_steps + steps)
                             ),
+                            **aux,
+                            **aux_dev,
                         }
                     )
                 else:
@@ -164,6 +168,7 @@ if __name__ == "__main__":
                             "learning_rate": cast(
                                 float, learning_rate(epoch * epoch_steps + steps)
                             ),
+                            **aux,
                         }
                     )  # type: ignore
 

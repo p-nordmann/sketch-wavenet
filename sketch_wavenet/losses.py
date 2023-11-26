@@ -97,17 +97,29 @@ def reconstruction_loss(model, inputs, M, key=None):
     logits = out[:, :, 6 * M :]
     target_logits = inputs[:, 1:, 2:]
 
-    return jnp.mean(
-        jax.vmap(mixture_loss)(
-            target_x,
-            target_y,
-            out_pis,
-            out_mu_xs,
-            out_mu_ys,
-            out_s_xs,
-            out_s_ys,
-            out_r_xys,
-            mask[:, 1:],
+    return (
+        jnp.mean(
+            jax.vmap(mixture_loss)(
+                target_x,
+                target_y,
+                out_pis,
+                out_mu_xs,
+                out_mu_ys,
+                out_s_xs,
+                out_s_ys,
+                out_r_xys,
+                mask[:, 1:],
+            )
+            / N_max
         )
-        / N_max
-    ) + jnp.mean(optax.softmax_cross_entropy(logits, target_logits))
+        + jnp.mean(optax.softmax_cross_entropy(logits, target_logits)),
+        {
+            "out_pis": jnp.linalg.norm(out_pis),
+            "out_mu_xs": jnp.linalg.norm(out_mu_xs),
+            "out_mu_ys": jnp.linalg.norm(out_mu_ys),
+            "out_s_xs": jnp.linalg.norm(out_s_xs),
+            "out_s_ys": jnp.linalg.norm(out_s_ys),
+            "out_r_xys": jnp.linalg.norm(out_r_xys),
+            "logits": jnp.linalg.norm(logits),
+        },
+    )

@@ -2,10 +2,27 @@ from typing import Iterable
 
 import equinox as eqx
 import jax
+import jax.numpy as jnp
 import optax
 from jaxtyping import PRNGKeyArray
 
 from .losses import reconstruction_loss
+
+
+def flat_grad_norm(grads):
+    leaves, _ = jax.tree_util.tree_flatten(grads)
+    squared_norms = [jnp.sum(jnp.square(leaf)) for leaf in leaves]
+    total_norm = jnp.sqrt(sum(squared_norms))
+    return total_norm
+
+
+def grad_norm(grads):
+    grad_norm = {}
+    grad_norm["wavenet_input"] = flat_grad_norm(grads.wavenet_input)
+    for k in range(len(grads.wavenet_layers)):
+        grad_norm[f"wavenet_layer_{k}"] = flat_grad_norm(grads.wavenet_layers[k])
+    grad_norm["wavenet_head"] = flat_grad_norm(grads.wavenet_head)
+    return grad_norm
 
 
 def make_epoch(
@@ -48,10 +65,12 @@ def make_step(
     *,
     key: PRNGKeyArray,
 ):
-    loss, grads = eqx.filter_value_and_grad(reconstruction_loss)(model, inputs, M, key)
+    (loss, aux), grads = eqx.filter_value_and_grad(reconstruction_loss, has_aux=True)(
+        model, inputs, M, key
+    )
     updates, opt_state = opt.update(grads, opt_state, model)
     model = eqx.apply_updates(model, updates)
-    return loss, model, opt_state
+    return loss, model, opt_state, {**aux, **grad_norm(grads)}
 
 
 @eqx.filter_jit
