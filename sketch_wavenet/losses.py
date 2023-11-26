@@ -10,6 +10,14 @@ def build_mask(
     return jnp.arange(N_max) < N_s[:, jnp.newaxis]
 
 
+def safe_logcosh(x):
+    return jnp.where(
+        (x >= -2) & (x <= 2),
+        jnp.log(jnp.cosh(x)),
+        jnp.log(jnp.cosh(2)) + jnp.absolute(x) - 2,
+    )
+
+
 def inner_mixture_loss(
     target_x,
     target_y,
@@ -21,10 +29,16 @@ def inner_mixture_loss(
     out_r_xys,
 ):
     """Computes the mixture loss for one time step."""
+    # We retrieve a constant term to make pis_term more stable.
+    out_pis = out_pis - jnp.max(out_pis)
     pis_term = out_pis - jax.nn.logsumexp(
         out_pis
     )  # shape = [M] (broadcasting [M] - [])
-    standalone_term = jnp.log(jnp.cosh(out_r_xys)) - out_s_xs - out_s_ys  # shape = [M]
+
+    # We rewrite log(cosh) to make it more stable.
+    # To this end, we only compute it between -2 and 2.
+    # Outside this range, we approximate it with affine functions.
+    standalone_term = safe_logcosh(out_r_xys) - out_s_xs - out_s_ys  # shape = [M]
 
     x_normalized = (target_x - out_mu_xs) / jnp.exp(
         out_s_xs
@@ -32,13 +46,20 @@ def inner_mixture_loss(
     y_normalized = (target_y - out_mu_ys) / jnp.exp(
         out_s_ys
     )  # shape = [M] (broadcasting ([] - [M])/[M])
-    real_part = (
-        jnp.cosh(out_r_xys) * x_normalized - jnp.sinh(out_r_xys) * y_normalized
+    quadratic_term = (
+        -0.5
+        * (
+            x_normalized**2
+            + y_normalized**2
+            - 2 * jnp.tanh(out_r_xys) * x_normalized * y_normalized
+        )
+        / (1 - jnp.tanh(out_r_xys) ** 2)
     )  # shape = [M]
-    imag_part = y_normalized  # shape = [M]
-    quadratic_term = -0.5 * (real_part**2 + imag_part**2)  # shape = [M]
 
-    return jax.nn.logsumexp(pis_term + standalone_term + quadratic_term)  # shape = []
+    # We retrieve a constant term to make the final logsumexp more stable.
+    inside_term = pis_term + standalone_term + quadratic_term
+    max_value = jnp.max(inside_term)
+    return max_value + jax.nn.logsumexp(inside_term - max_value)  # shape = []
 
 
 def mixture_loss(
