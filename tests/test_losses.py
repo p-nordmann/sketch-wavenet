@@ -13,7 +13,6 @@ def test_inner_mixture_loss_one_gaussian():
     out_mu_ys = jnp.array([[0], [0], [2]], dtype=jnp.float32)
     out_s_xs = jnp.array([[0], [jnp.log(2)], [0]], dtype=jnp.float32)
     out_s_ys = jnp.array([[0], [jnp.log(2)], [0]], dtype=jnp.float32)
-    out_r_xys = jnp.array([[0], [0], [1]], dtype=jnp.float32)
     got = jax.vmap(inner_mixture_loss)(
         target_x,
         target_y,
@@ -22,18 +21,19 @@ def test_inner_mixture_loss_one_gaussian():
         out_mu_ys,
         out_s_xs,
         out_s_ys,
-        out_r_xys,
     )
     want = jnp.log(
         jnp.array(
             [
                 1,
                 jnp.exp(-1 / 8) / 4,
-                jnp.exp(-2 * jnp.cosh(1) ** 2) * jnp.cosh(1),
+                jnp.exp(-2),
             ],
             dtype=jnp.float32,
         )
-    )
+    ) - jnp.log(
+        2
+    )  # retrieve log(2) because we added a 1 to the pis denominator
     assert jnp.allclose(got, want, atol=eps).item()
 
 
