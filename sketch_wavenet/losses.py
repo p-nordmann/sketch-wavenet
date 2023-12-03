@@ -10,14 +10,6 @@ def build_mask(
     return jnp.arange(N_max) < N_s[:, jnp.newaxis]
 
 
-def safe_logcosh(x):
-    return jnp.where(
-        (x >= -2) & (x <= 2),
-        jnp.log(jnp.cosh(x)),
-        jnp.log(jnp.cosh(2)) + jnp.absolute(x) - 2,
-    )
-
-
 def inner_mixture_loss(
     target_x,
     target_y,
@@ -26,19 +18,16 @@ def inner_mixture_loss(
     out_mu_ys,
     out_s_xs,
     out_s_ys,
-    out_r_xys,
 ):
     """Computes the mixture loss for one time step."""
     # We retrieve a constant term to make pis_term more stable.
-    out_pis = out_pis - jnp.max(out_pis)
-    pis_term = out_pis - jax.nn.logsumexp(
-        out_pis
+    # We also add a 0 term to the denominator to make the model able to turn off ALL of the gaussians.
+    retrieve_cst = jnp.max(jnp.append(out_pis, 0))
+    pis_term = (
+        out_pis - retrieve_cst - jax.nn.logsumexp(jnp.append(out_pis, 0) - retrieve_cst)
     )  # shape = [M] (broadcasting [M] - [])
 
-    # We rewrite log(cosh) to make it more stable.
-    # To this end, we only compute it between -2 and 2.
-    # Outside this range, we approximate it with affine functions.
-    standalone_term = safe_logcosh(out_r_xys) - out_s_xs - out_s_ys  # shape = [M]
+    standalone_term = -out_s_xs - out_s_ys  # shape = [M]
 
     x_normalized = (target_x - out_mu_xs) / jnp.exp(
         out_s_xs
@@ -46,15 +35,7 @@ def inner_mixture_loss(
     y_normalized = (target_y - out_mu_ys) / jnp.exp(
         out_s_ys
     )  # shape = [M] (broadcasting ([] - [M])/[M])
-    quadratic_term = (
-        -0.5
-        * (
-            x_normalized**2
-            + y_normalized**2
-            - 2 * jnp.tanh(out_r_xys) * x_normalized * y_normalized
-        )
-        / (1 - jnp.tanh(out_r_xys) ** 2)
-    )  # shape = [M]
+    quadratic_term = -0.5 * (x_normalized**2 + y_normalized**2)  # shape = [M]
 
     # We retrieve a constant term to make the final logsumexp more stable.
     inside_term = pis_term + standalone_term + quadratic_term
@@ -70,7 +51,6 @@ def mixture_loss(
     out_mu_ys,
     out_s_xs,
     out_s_ys,
-    out_r_xys,
     mask,
 ):
     """Computes the mixture loss for all time steps.
@@ -88,7 +68,6 @@ def mixture_loss(
                 out_mu_ys,
                 out_s_xs,
                 out_s_ys,
-                out_r_xys,
             )
             - jnp.log(2 * jnp.pi)
         )
@@ -110,12 +89,11 @@ def reconstruction_loss(model, inputs, M, key=None):
     out_mu_ys = out[:, :, 2 * M : 3 * M]
     out_s_xs = out[:, :, 3 * M : 4 * M]
     out_s_ys = out[:, :, 4 * M : 5 * M]
-    out_r_xys = out[:, :, 5 * M : 6 * M]
 
     target_x = inputs[:, 1:, 0]
     target_y = inputs[:, 1:, 1]
 
-    logits = out[:, :, 6 * M :]
+    logits = out[:, :, 5 * M :]
     target_logits = inputs[:, 1:, 2:]
 
     return (
@@ -128,7 +106,6 @@ def reconstruction_loss(model, inputs, M, key=None):
                 out_mu_ys,
                 out_s_xs,
                 out_s_ys,
-                out_r_xys,
                 mask[:, 1:],
             )
             / N_max
@@ -140,7 +117,6 @@ def reconstruction_loss(model, inputs, M, key=None):
             "out_mu_ys": jnp.linalg.norm(out_mu_ys),
             "out_s_xs": jnp.linalg.norm(out_s_xs),
             "out_s_ys": jnp.linalg.norm(out_s_ys),
-            "out_r_xys": jnp.linalg.norm(out_r_xys),
             "logits": jnp.linalg.norm(logits),
         },
     )
