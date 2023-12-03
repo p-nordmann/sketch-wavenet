@@ -200,9 +200,7 @@ if __name__ == "__main__":
     # Dump model weights.
     if not os.path.isdir(config.files.out_dir):
         os.makedirs(config.files.out_dir)
-    write_toml(
-        os.path.join(config.files.out_dir, "model_config.toml"), config.model.wavenet
-    )
+    write_toml(os.path.join(config.files.out_dir, "config.toml"), config)
     eqx.tree_serialise_leaves(os.path.join(config.files.out_dir, "model.eqx"), model)
 
     # Test.
