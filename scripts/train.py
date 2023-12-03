@@ -185,7 +185,7 @@ if __name__ == "__main__":
 
                 # Generate image and save it to png.
                 key_model, key_example = jax.random.split(key_model)
-                strokes = sample(config.model.num_gaussians, model, key_example)
+                strokes = sample(config.model.num_gaussians, model, key_example, T=0.1)
                 Drawing.from_stroke5(strokes).render().save_png(file_path)
 
                 if logger:
