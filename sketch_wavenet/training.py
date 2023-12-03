@@ -9,7 +9,7 @@ from jaxtyping import PRNGKeyArray
 from .losses import reconstruction_loss
 
 
-def flat_grad_norm(grads):
+def tree_norm(grads):
     leaves, _ = jax.tree_util.tree_flatten(grads)
     squared_norms = [jnp.sum(jnp.square(leaf)) for leaf in leaves]
     total_norm = jnp.sqrt(sum(squared_norms))
@@ -18,10 +18,10 @@ def flat_grad_norm(grads):
 
 def grad_norm(grads):
     grad_norm = {}
-    grad_norm["wavenet_input"] = flat_grad_norm(grads.wavenet_input)
+    grad_norm["wavenet_input"] = tree_norm(grads.wavenet_input)
     for k in range(len(grads.wavenet_layers)):
-        grad_norm[f"wavenet_layer_{k}"] = flat_grad_norm(grads.wavenet_layers[k])
-    grad_norm["wavenet_head"] = flat_grad_norm(grads.wavenet_head)
+        grad_norm[f"wavenet_layer_{k}"] = tree_norm(grads.wavenet_layers[k])
+    grad_norm["wavenet_head"] = tree_norm(grads.wavenet_head)
     return grad_norm
 
 
@@ -70,7 +70,12 @@ def make_step(
     )
     updates, opt_state = opt.update(grads, opt_state, model)
     model = eqx.apply_updates(model, updates)
-    return loss, model, opt_state, {**aux, **grad_norm(grads)}
+    return (
+        loss,
+        model,
+        opt_state,
+        {**aux, **grad_norm(grads), "model_weights": tree_norm(model)},
+    )
 
 
 @eqx.filter_jit
@@ -79,4 +84,5 @@ def make_eval_step(
     inputs: jax.Array,
     M: int,
 ):
-    return reconstruction_loss(model, inputs, M)
+    loss, aux = reconstruction_loss(model, inputs, M)
+    return (loss, {**aux, "model_weights": tree_norm(model)})
