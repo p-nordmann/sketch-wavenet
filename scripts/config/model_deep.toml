@@ -1,0 +1,41 @@
+[model.wavenet]
+num_layers = 32
+layer_dilations = [
+    1,
+    2,
+    4,
+    8,
+    16,
+    32,
+    64,
+    128,
+    1,
+    2,
+    4,
+    8,
+    16,
+    32,
+    64,
+    128,
+    1,
+    2,
+    4,
+    8,
+    16,
+    32,
+    64,
+    128,
+    1,
+    2,
+    4,
+    8,
+    16,
+    32,
+    64,
+    128,
+]
+size_in = 5
+input_kernel_size = 1
+size_layers = 64
+size_hidden = 356
+size_out = 103

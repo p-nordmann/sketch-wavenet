@@ -1,0 +1,14 @@
+[training]
+epochs = 10
+batch_size = 50
+validate_each = 7
+use_dropout = true
+optimizer = "adamw"
+weight_decay = 1e-3
+use_gradient_clipping = false
+schedule = "1cycle"
+base_learning_rate = 5e-4
+peak_learning_rate = 5e-3
+pct_start = 0.2
+div_factor = 50
+final_div_factor = 1e3
