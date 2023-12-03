@@ -8,8 +8,8 @@ def sample_from_mixture(M, out, key, deterministic, T):
     out_pis = out[0:M] / T
     out_mu_xs = out[M : 2 * M]
     out_mu_ys = out[2 * M : 3 * M]
-    out_s_xs = out[3 * M : 4 * M] - jnp.log(T)
-    out_s_ys = out[4 * M : 5 * M] - jnp.log(T)
+    out_s_xs = out[3 * M : 4 * M] + jnp.log(T)
+    out_s_ys = out[4 * M : 5 * M] + jnp.log(T)
     logits = out[5 * M :] / T
 
     key_1, key_2, key_3 = jax.random.split(key, 3)
