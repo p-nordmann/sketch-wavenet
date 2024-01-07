@@ -75,7 +75,7 @@ def mixture_loss(
 
 
 def reconstruction_loss(model, inputs, M, key=None):
-    N_s = jnp.argmax(inputs[:, :, -1] > 0.5, axis=-1) - 1
+    N_s = jnp.argmax(inputs[:, :, -1], axis=-1) - 1
     N_max = inputs.shape[1]
     out = jax.vmap(model, in_axes=[0, None, None])(
         inputs[:, :-1],

@@ -20,7 +20,8 @@ from PIL import Image
 from tqdm import tqdm
 
 from sketch_wavenet.config import read_tomls, write_toml
-from sketch_wavenet.data_processing import build_dataset, normalize_data, prepare_splits
+from sketch_wavenet.data_processing import (build_dataset, normalize_data,
+                                            prepare_splits)
 from sketch_wavenet.drawing import Drawing
 from sketch_wavenet.logging import TensorboardLogger
 from sketch_wavenet.sampling import sample
@@ -40,6 +41,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "config_files", nargs="+", help="A list of config files (.toml)"
     )
+    parser.add_argument("--resume_from", help="Path to model to resume from")
     args = parser.parse_args()
     config = read_tomls(args.config_files)
     print(config)
@@ -68,6 +70,10 @@ if __name__ == "__main__":
 
     # Make model.
     model = Wavenet(config=config.model.wavenet, key=key_model)
+    if args.resume_from:
+        model = eqx.tree_deserialise_leaves(
+            os.path.join(args.resume_from, "model.eqx"), model
+        )
 
     # Util: number of training steps.
     epoch_steps = X_train.shape[0] // config.training.batch_size

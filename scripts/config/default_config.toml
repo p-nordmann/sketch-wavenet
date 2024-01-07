@@ -30,15 +30,15 @@ size_hidden = 128
 size_out = 103
 
 [training]
-epochs = 10
-batch_size = 50
+epochs = 100
+batch_size = 500
 validate_each = 7
 use_dropout = true
 optimizer = "adamw"
 weight_decay = 0.1
 use_gradient_clipping = true
 schedule = "constant"
-base_learning_rate = 1e-4
+base_learning_rate = 5e-3
 peak_learning_rate = 1e-3
 pct_start = 0.3
 div_factor = 25
